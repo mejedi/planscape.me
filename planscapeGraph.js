@@ -2,6 +2,34 @@ const graph = require('./graph');
 const CreateGraph = graph.CreateGraph;
 const DefaultPropagateFunc = graph.DefaultPropagateFunc;
 const ObjectTypeId = require('./importData').ObjectTypeId;
+const Digraph = require('./dot').Digraph;
+const ExecSync = require('child_process').execSync;
+
+// Assign ranks using graphviz
+function Rank(graph, objectsIndex) {
+
+    var rendering = Digraph();
+    rendering.graph({'phase': 1});
+
+    for (let [id, object] of objectsIndex) {
+        if (ObjectTypeId(object) == 'RELOPTINFO') {
+            graph.forEachEdgeOut(object, function(peer) {
+                if (ObjectTypeId(peer) == 'RELOPTINFO') {
+                    rendering.edge([id, peer['x-id']]);
+                }
+            });
+        }
+    }
+
+    var output = JSON.parse(ExecSync('/usr/local/bin/dot -Tdot_json', {
+        'input': rendering.toString(),
+        'encoding': 'utf8'
+    }));
+
+    for (let object of output.objects) {
+        graph.getAttrs(objectsIndex.get(object.name)).rank = +object.rank;
+    }
+}
 
 module.exports.CreatePlanscapeGraph = function (objectsIndex) {
     var graph = CreateGraph();
@@ -90,5 +118,6 @@ module.exports.CreatePlanscapeGraph = function (objectsIndex) {
         return false;
     });
 
+    Rank(graph, objectsIndex);
     return graph;
 }
