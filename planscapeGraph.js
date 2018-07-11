@@ -75,7 +75,6 @@ module.exports.CreatePlanscapeGraph = function (objectsIndex) {
         }
 
         if (destRelOptInfo != srcRelOptInfo) {
-            destAttrs.hasForeignRefs = true;
             graph.connect(srcRelOptInfo, destRelOptInfo);
             if (srcAttrs.isChosen) {
                 var srcRelOptInfoAttrs = graph.getAttrs(srcRelOptInfo);
@@ -90,20 +89,6 @@ module.exports.CreatePlanscapeGraph = function (objectsIndex) {
 
         return false;
     });
-
-
-    for (let relOptInfo of relOptInfos) {
-        var attrs = graph.getAttrs(relOptInfo);
-        var a = 0, b = 0;
-        graph.forEachEdgeOut(relOptInfo, function(rel) {
-            a += ObjectTypeId(rel) == 'RELOPTINFO';
-        });
-        graph.forEachEdgeIn(relOptInfo, function(rel) {
-            b += ObjectTypeId(rel) == 'RELOPTINFO';
-        });
-        attrs.isSingleLink = a == 1;
-        attrs.isRoot = b == 0;
-    }
 
     return graph;
 }

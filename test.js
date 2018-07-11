@@ -118,26 +118,25 @@ function PathLabel(path) {
 function RenderPath(cluster, path) {
     if (ObjectTypeId(path).endsWith('PATH') || ObjectTypeId(path) == 'X-REF') {
         if (pathsSeen.has(path)) {
-            return;
+            return true;
         }
         pathsSeen.add(path);
         var id = path['x-id'];
         var attrs = graph.getAttrs(path);
         var node = cluster.node(id, {
-            'label': PathLabel(path),
+            'label': PathLabel(path)
         });
         if (attrs.isChosen) {
             node.color = 'red';
             node.fontcolor = 'red';
         };
-        var singleLink = graph.getAttrs(attrs.relOptInfo).isSingleLink;
         graph.forEachEdgeOut(path, function(subPath) {
             if (ObjectTypeId(subPath).endsWith('PATH') || ObjectTypeId(subPath) == 'X-REF') {
                 var sameRel = graph.getAttrs(subPath).relOptInfo == attrs.relOptInfo;
                 if (sameRel) {
                     RenderPath(cluster, subPath);
                 }
-                if (sameRel || attrs.isChosen || singleLink) {
+                if (sameRel || attrs.isChosen) {
                     var edge = d.edge([id, subPath['x-id']]);
                     if (attrs.isChosen) {
                         edge.color = 'red';
@@ -146,56 +145,59 @@ function RenderPath(cluster, path) {
                 }
             }
         });
+        return true;
     }
+    return false;
 }
 
-var expand = true;
+function MinUserRank(path) {
+    var attrs = graph.getAttrs(path);
+    if (attrs.minUserRank) {
+        return attrs.minUserRank;
+    }
+    var minUserRank = attrs.minUserRank = graph.getAttrs(attrs.relOptInfo).rank;
+    graph.forEachEdgeIn(path, function(user) {
+        minUserRank = Math.min(minUserRank, MinUserRank(user));
+    });
+    return attrs.minUserRank = minUserRank;
+}
+
+// Level-o-detail
+function LODCheck(path) {
+    var rank = graph.getAttrs(graph.getAttrs(path).relOptInfo).rank;
+    var minUserRank = MinUserRank(path);
+    var score = minUserRank == 0 ? 1000 : rank - minUserRank;
+/*
+    if (rank <= 2) return true;
+    if (rank <= 5) return score > 0;
+    if (rank <= 7) return score > 1;
+*/
+    return score > 2;
+}
 
 for (let [_,object] of objects) {
     if (ObjectTypeId(object) == 'RELOPTINFO') {
         
         var id = object['x-id'];
         var attrs = graph.getAttrs(object);
-        var childRelOptInfosViaChosen = attrs.childRelOptInfosViaChosen;
-       
-        var nodeAttrs = {
+
+        var node = ClusterForRank(attrs.rank||0).subgraph('cluster-'+id);
+        node.graph({
             'label': (object['x-relation-name']||'').replace(/public\./,''),
-            'style': expand ? 'dotted' : 'solid',
+            'style': 'dotted',
             'labelloc': 'bottom',
-        };
+        });
 
-        if (attrs.isChosen) {
-            nodeAttrs.color = 'red';
-        } else if (attrs.isRoot) {
-            // orphan
-            nodeAttrs.style = 'filled';
-            nodeAttrs.color = 'yellow';
-        }
-       
-        if (expand) {
-            var node = ClusterForRank(attrs.rank||0).subgraph('cluster-'+id);
-            var isTrueRoot = attrs.isChosen && attrs.isRoot;
-            node.graph(nodeAttrs);
+        var counter = 0;
 
-            graph.forEachEdgeIn(object, function(path, n) {
-                if (isTrueRoot || attrs.isSingleLink || graph.getAttrs(path).hasForeignRefs) {
-                    RenderPath(node,path);
-                }
-            });
+        graph.forEachEdgeIn(object, function(path, n) {
+            if (graph.getAttrs(path).isChosen || LODCheck(path)) {
+                counter += +RenderPath(node,path);
+            }
+        });
 
-        } else {
-            var node = ClusterForRank(attrs.rank||0).node(id, nodeAttrs);
-
-            graph.forEachEdgeOut(object, function (peer) {
-                if (ObjectTypeId(peer) == 'RELOPTINFO') {
-                    var isEdgeChosen = childRelOptInfosViaChosen &&
-                                       childRelOptInfosViaChosen.has(peer);
-                    if (isEdgeChosen) {
-                        var edge = d.edge([id, peer['x-id']]);
-                        edge.color = 'red';
-                    }
-                }
-            });
+        if (counter == 0) {
+            node.node('content-'+id, {'label':'h\nM\nM','shape':'rect', 'style':'invis'})
         }
     }
 }
