@@ -15,7 +15,7 @@ function Rank(graph, objectsIndex) {
         if (ObjectTypeId(object) == 'RELOPTINFO') {
             graph.forEachEdgeOut(object, function(peer) {
                 if (ObjectTypeId(peer) == 'RELOPTINFO') {
-                    rendering.edge([id, peer['x-id']]);
+                    rendering.edge({'from': id, 'to': peer['x-id']});
                 }
             });
         }

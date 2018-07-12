@@ -90,7 +90,7 @@ function RenderPath(cluster, path) {
                     RenderPath(cluster, subPath);
                 }
                 if (sameRel || attrs.isChosen) {
-                    var edge = d.edge([id, subPath['x-id']]);
+                    var edge = d.edge({'from':id, 'to':subPath['x-id']});
                     if (attrs.isChosen) {
                         edge.color = 'red';
                         edge.weight = 100;

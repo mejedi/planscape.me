@@ -44,12 +44,21 @@ function GraphLike(options) {
         return genericAttr(id, attrs);
     }
 
-    this.edge = function(id, attrs) {
-        if (!(id instanceof Array) && !attrs) {
-            attrs = id;
+    this.edge = function(edge, attrs) {
+        var id;
+        if (!attrs && !edge.from) {
+            attrs = edge;
             id = 'edge';
         } else {
-            id = `${GvEscape(id[0])}${edgeType}${GvEscape(id[1])}`;
+            var from = GvEscape(edge.from);
+            if (edge.fromPort) {
+                from += ':' + GvEscape(edge.fromPort);
+            }
+            var to = GvEscape(edge.to);
+            if (edge.toPort) {
+                to += ':' + GvEscape(edge.toPort);
+            }
+            id = `${from}${edgeType}${to}`;
         }
         return genericAttr(id, attrs);
     }
